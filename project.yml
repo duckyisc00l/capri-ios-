@@ -1,0 +1,37 @@
+name: Capri
+options:
+  bundleIdPrefix: com.duckyisc00l
+  deploymentTarget:
+    iOS: "16.4"
+targets:
+  Capri:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+        excludes: ["Resources/**", "Info.plist"]
+      - path: App/Resources
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - framework: Frameworks/llama.xcframework
+        embed: true
+      - sdk: Metal.framework
+      - sdk: Accelerate.framework
+      - sdk: Speech.framework
+      - sdk: AVFoundation.framework
+    scheme: {}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.duckyisc00l.capri
+        PRODUCT_NAME: Capri
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        OTHER_LDFLAGS: ["-lc++"]
+        CODE_SIGNING_ALLOWED: "NO"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGN_IDENTITY: ""

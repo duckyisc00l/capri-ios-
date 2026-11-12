@@ -1,0 +1,66 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  LLAMA_TAG: b12319
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache on-device AI engine
+        id: llama-cache
+        uses: actions/cache@v4
+        with:
+          path: Frameworks/llama.xcframework
+          key: llama-ios-${{ env.LLAMA_TAG }}-v1
+
+      - name: Build on-device AI engine (llama.cpp)
+        if: steps.llama-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp /tmp/llama.cpp
+          cd /tmp/llama.cpp
+          ./build-xcframework.sh ios-device
+          mkdir -p "$GITHUB_WORKSPACE/Frameworks"
+          cp -R build-apple/llama.xcframework "$GITHUB_WORKSPACE/Frameworks/"
+          ls "$GITHUB_WORKSPACE/Frameworks/llama.xcframework"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build app
+        run: |
+          set -o pipefail
+          xcodebuild -project Capri.xcodeproj -scheme Capri -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build \
+            | tee build.log | grep -E "error:|warning: .*deprecated|BUILD" || true
+          test -d build/Build/Products/Release-iphoneos/Capri.app
+
+      - name: Package IPA
+        run: |
+          mkdir Payload
+          cp -R build/Build/Products/Release-iphoneos/Capri.app Payload/
+          zip -qry Capri.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Capri-ipa
+          path: Capri.ipa
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "build-${{ github.run_number }}" Capri.ipa --title "Capri build ${{ github.run_number }}" --notes "Unsigned IPA. Install with Sideloadly or AltStore."
