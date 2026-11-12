@@ -161,6 +161,7 @@ final class ChatEngine: ObservableObject {
         var thinkStart: Date?
         var thinkSecs: Int?
         do {
+            Log.write("reply started (\(settings.brain))")
             for try await piece in stream {
                 if Task.isCancelled { break }
                 full += piece
@@ -182,6 +183,7 @@ final class ChatEngine: ObservableObject {
                 }
             }
         } catch {
+            Log.write("reply error: \(error.localizedDescription)")
             if full.isEmpty {
                 setReply(chatID, replyID) { $0.text = error.localizedDescription; $0.failed = true }
                 return

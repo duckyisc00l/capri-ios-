@@ -203,12 +203,14 @@ extension ModelManager: URLSessionDownloadDelegate {
             do { try FileManager.default.moveItem(at: location, to: dest) } catch { err = "failed" }
         }
         let e = err
+        Log.write("download finished \(m.file) http=\(code) err=\(e ?? "none")")
         Task { @MainActor in self.finished(m, ok: e == nil, error: e) }
     }
 
     nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         guard let error, let m = Self.model(of: task) else { return }
         let cancelled = (error as NSError).code == NSURLErrorCancelled
+        Log.write("download error \(m.file): \(error.localizedDescription)")
         Task { @MainActor in self.finished(m, ok: false, error: cancelled ? nil : "failed") }
     }
 

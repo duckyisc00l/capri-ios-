@@ -40,7 +40,9 @@ final class LlamaRunner: @unchecked Sendable {
     private let nBatch: Int32 = 512
 
     private init() {
+        Log.write("AI engine starting")
         llama_backend_init()
+        Log.write("AI engine ready")
     }
 
     func cancel() { cancelled = true }
@@ -58,9 +60,10 @@ final class LlamaRunner: @unchecked Sendable {
     private func load(_ path: String) throws {
         if loadedPath == path, ctx != nil { return }
         freeAll()
+        Log.write("loading model \((path as NSString).lastPathComponent)")
         var mp = llama_model_default_params()
         mp.n_gpu_layers = 99
-        guard let m = llama_model_load_from_file(path, mp) else { throw BrainError.loadFailed }
+        guard let m = llama_model_load_from_file(path, mp) else { Log.write("model load failed"); throw BrainError.loadFailed }
         var cp = llama_context_default_params()
         cp.n_ctx = UInt32(nCtx)
         cp.n_batch = UInt32(nBatch)
@@ -76,6 +79,7 @@ final class LlamaRunner: @unchecked Sendable {
         vocab = llama_model_get_vocab(m)
         loadedPath = path
         cached = []
+        Log.write("model loaded")
     }
 
     /// Streams the reply token by token.

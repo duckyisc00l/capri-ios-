@@ -11,7 +11,11 @@ enum Sprites {
 
     static func frames(_ name: String) -> [UIImage] {
         if let f = cache[name] { return f }
-        guard let img = UIImage(contentsOfFile: Res.url("sprites/\(name).png").path), let cg = img.cgImage else { return [] }
+        guard let img = UIImage(contentsOfFile: Res.url("sprites/\(name).png").path), let cg = img.cgImage else {
+            Log.write("sprite missing: \(name)")
+            cache[name] = []
+            return []
+        }
         let w = widths[name] ?? cg.height
         let n = max(1, cg.width / w)
         let out = (0..<n).compactMap { i -> UIImage? in

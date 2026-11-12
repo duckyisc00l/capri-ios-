@@ -19,17 +19,26 @@ struct CapriApp: App {
     @StateObject private var engine: ChatEngine
 
     init() {
+        Log.write("Swift started · \(Log.device())")
         CrashReporter.install()
+        Log.write("crash catcher on")
         Res.registerFont()
+        Log.write("font registered, resources at \(Res.dir.path) exists=\(FileManager.default.fileExists(atPath: Res.dir.path))")
+        Log.write("texts: \(Texts.shared.languages.count) languages")
         let store = ChatStore()
+        Log.write("chats loaded: \(store.chats.count)")
         let settings = Settings()
+        Log.write("settings loaded · lang=\(settings.lang) brain=\(settings.brain)")
         let models = ModelManager()
+        Log.write("models: \(models.installed.map(\.file))")
         let voice = Voice()
+        Log.write("voice ready")
         _store = StateObject(wrappedValue: store)
         _settings = StateObject(wrappedValue: settings)
         _models = StateObject(wrappedValue: models)
         _voice = StateObject(wrappedValue: voice)
         _engine = StateObject(wrappedValue: ChatEngine(store: store, settings: settings, models: models, voice: voice))
+        Log.write("app objects ready, showing UI")
     }
 
     var body: some Scene {

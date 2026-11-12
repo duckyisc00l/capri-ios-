@@ -73,7 +73,7 @@ struct ChatView: View {
         .onChange(of: voice.speaking) { _ in updateTalking() }
         .onChange(of: engine.busy) { _ in updateTalking() }
         .onChange(of: store.currentID) { _ in if !empty { anim.lying = false } }
-        .onAppear { crashText = CrashReporter.takeLast() }
+        .onAppear { Log.write("chat screen shown"); crashText = CrashReporter.takeLast() }
         .sheet(isPresented: Binding(get: { crashText != nil }, set: { if !$0 { crashText = nil } })) {
             CrashSheet(text: crashText ?? "")
         }

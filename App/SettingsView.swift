@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject var s: Settings
@@ -84,6 +85,12 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink(value: "log") {
+                        Label("Crash log", systemImage: "doc.text.magnifyingglass")
+                    }
+                }
+
+                Section {
                     Text("Capri for iPhone. Things Android allowed that iPhone doesn't: floating over other apps, the \"Hey Capri\" wake word in the background, controlling other apps, starting with the phone, and the Quick Settings tile.")
                         .font(.footnote).foregroundColor(Theme.dim)
                 }
@@ -93,7 +100,7 @@ struct SettingsView: View {
             .navigationTitle(s.s("settings"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: String.self) { v in
-                if v == "models" { ModelsView() } else { AddModelView() }
+                if v == "models" { ModelsView() } else if v == "log" { LogView() } else { AddModelView() }
             }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -303,5 +310,38 @@ struct RepoFilesView: View {
         var n = (file as NSString).lastPathComponent
         n = n.replacingOccurrences(of: ".gguf", with: "", options: .caseInsensitive)
         return n.replacingOccurrences(of: "[-_.]", with: " ", options: .regularExpression)
+    }
+}
+
+struct LogView: View {
+    @State private var text = ""
+    @State private var copied = false
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                Text(text)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.85))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                Color.clear.frame(height: 1).id("end")
+            }
+            .onAppear {
+                text = Log.device() + "\n\n" + Log.read()
+                DispatchQueue.main.async { proxy.scrollTo("end") }
+            }
+        }
+        .background(Theme.bg.ignoresSafeArea())
+        .navigationTitle("Crash log")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(copied ? "Copied" : "Copy") { UIPasteboard.general.string = text; copied = true }
+                ShareLink(item: Log.file) { Image(systemName: "square.and.arrow.up") }
+                Button(role: .destructive) { Log.clear(); text = "(empty)" } label: { Image(systemName: "trash") }
+            }
+        }
     }
 }

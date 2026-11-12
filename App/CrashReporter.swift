@@ -7,9 +7,11 @@ enum CrashReporter {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("last-crash.txt")
     }
     private static var path: [CChar] = []
+    private static var logPath: [CChar] = []
 
     static func install() {
         path = Array(file.path.utf8CString)
+        logPath = Array(Log.file.path.utf8CString)
         NSSetUncaughtExceptionHandler { e in
             let text = "Exception: \(e.name.rawValue)\n\(e.reason ?? "")\n\n" + e.callStackSymbols.joined(separator: "\n")
             CrashReporter.write(text)
@@ -32,6 +34,12 @@ enum CrashReporter {
         if fd >= 0 {
             _ = data.withUnsafeBufferPointer { Darwin.write(fd, $0.baseAddress, $0.count) }
             close(fd)
+        }
+        let banner = Array("\n!!!!! CRASH !!!!!\n".utf8) + data + Array("\n".utf8)
+        let lfd = logPath.withUnsafeBufferPointer { open($0.baseAddress!, O_WRONLY | O_CREAT | O_APPEND, 0o644) }
+        if lfd >= 0 {
+            _ = banner.withUnsafeBufferPointer { Darwin.write(lfd, $0.baseAddress, $0.count) }
+            close(lfd)
         }
     }
 
