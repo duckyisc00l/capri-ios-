@@ -1,0 +1,46 @@
+workflows:
+  capri-ipa:
+    name: Capri unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      xcode: latest
+      vars:
+        LLAMA_TAG: b12319
+    cache:
+      cache_paths:
+        - $CM_BUILD_DIR/Frameworks
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+    scripts:
+      - name: Build on-device AI engine (llama.cpp)
+        script: |
+          if [ ! -d Frameworks/llama.xcframework ]; then
+            git clone --depth 1 --branch "$LLAMA_TAG" https://github.com/ggml-org/llama.cpp /tmp/llama.cpp
+            cd /tmp/llama.cpp && ./build-xcframework.sh ios-device
+            mkdir -p "$CM_BUILD_DIR/Frameworks"
+            cp -R build-apple/llama.xcframework "$CM_BUILD_DIR/Frameworks/"
+          fi
+      - name: Generate Xcode project
+        script: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build app
+        script: |
+          set -o pipefail
+          xcodebuild -project Capri.xcodeproj -scheme Capri -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build \
+            | tee build.log | grep -E "error:|BUILD" || true
+          test -d build/Build/Products/Release-iphoneos/Capri.app
+      - name: Package IPA
+        script: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Capri.app Payload/
+          zip -qry Capri.ipa Payload
+    artifacts:
+      - Capri.ipa
+      - build.log
