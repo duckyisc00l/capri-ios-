@@ -3,7 +3,7 @@ import SwiftUI
 import CoreText
 
 enum Res {
-    static var dir: URL { Bundle.main.resourceURL!.appendingPathComponent("Resources") }
+    static var dir: URL { Bundle.main.resourceURL!.appendingPathComponent("CapriAssets") }
     static func url(_ name: String) -> URL { dir.appendingPathComponent(name) }
 
     static func registerFont() {
