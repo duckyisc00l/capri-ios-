@@ -17,6 +17,7 @@ struct ChatView: View {
     @State private var bubble: String?
     @State private var bursts: [Burst] = []
     @FocusState private var focused: Bool
+    @State private var crashText: String?
 
     private var chat: Chat? { store.current }
     private var empty: Bool { chat?.messages.isEmpty ?? true }
@@ -72,6 +73,10 @@ struct ChatView: View {
         .onChange(of: voice.speaking) { _ in updateTalking() }
         .onChange(of: engine.busy) { _ in updateTalking() }
         .onChange(of: store.currentID) { _ in if !empty { anim.lying = false } }
+        .onAppear { crashText = CrashReporter.takeLast() }
+        .sheet(isPresented: Binding(get: { crashText != nil }, set: { if !$0 { crashText = nil } })) {
+            CrashSheet(text: crashText ?? "")
+        }
     }
 
     private func updateTalking() {
@@ -302,5 +307,34 @@ struct ChatsSheet: View {
         }
         .preferredColorScheme(.dark)
         .tint(Theme.pink)
+    }
+}
+
+struct CrashSheet: View {
+    let text: String
+    @Environment(\.dismiss) var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(text)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.85))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+            }
+            .background(Theme.bg.ignoresSafeArea())
+            .navigationTitle("Capri crashed last time")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(copied ? "Copied" : "Copy") { UIPasteboard.general.string = text; copied = true }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }

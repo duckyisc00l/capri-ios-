@@ -19,6 +19,7 @@ struct CapriApp: App {
     @StateObject private var engine: ChatEngine
 
     init() {
+        CrashReporter.install()
         Res.registerFont()
         let store = ChatStore()
         let settings = Settings()

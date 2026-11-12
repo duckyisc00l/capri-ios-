@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 struct LocalModel: Codable, Identifiable, Hashable {
     var name: String
@@ -50,19 +51,16 @@ final class ModelManager: NSObject, ObservableObject {
         if let d = try? Data(contentsOf: registry), let list = try? JSONDecoder().decode([LocalModel].self, from: d) {
             installed = list.filter { FileManager.default.fileExists(atPath: $0.path.path) }
         }
-        let cfg = URLSessionConfiguration.background(withIdentifier: "capri.models")
-        cfg.isDiscretionary = false
-        cfg.sessionSendsLaunchEvents = true
+        // A normal (foreground) session: background sessions don't work inside LiveContainer.
+        let cfg = URLSessionConfiguration.default
         cfg.allowsCellularAccess = true
+        cfg.timeoutIntervalForRequest = 120
+        cfg.timeoutIntervalForResource = 60 * 60 * 6
         session = URLSession(configuration: cfg, delegate: self, delegateQueue: nil)
-        session.getAllTasks { tasks in
-            let items: [(Int, LocalModel)] = tasks.compactMap { t in
-                guard let s = t.taskDescription, let d = s.data(using: .utf8),
-                      let m = try? JSONDecoder().decode(LocalModel.self, from: d) else { return nil }
-                return (t.taskIdentifier, m)
-            }
-            Task { @MainActor in
-                for (_, m) in items { self.pending[m.file] = m; self.progress[m.file] = self.progress[m.file] ?? 0 }
+        // Leftover half-downloaded files from a crash or a killed app.
+        if let files = try? FileManager.default.contentsOfDirectory(at: Paths.models, includingPropertiesForKeys: nil) {
+            for f in files where !installed.contains(where: { $0.path.lastPathComponent == f.lastPathComponent }) {
+                try? FileManager.default.removeItem(at: f)
             }
         }
     }
@@ -95,6 +93,7 @@ final class ModelManager: NSObject, ObservableObject {
         pending[m.file] = m
         progress[m.file] = 0
         errors[m.file] = nil
+        UIApplication.shared.isIdleTimerDisabled = true
         task.resume()
         return nil
     }
@@ -117,6 +116,7 @@ final class ModelManager: NSObject, ObservableObject {
     fileprivate func finished(_ m: LocalModel, ok: Bool, error: String?) {
         progress[m.file] = nil
         pending[m.file] = nil
+        if progress.isEmpty { UIApplication.shared.isIdleTimerDisabled = false }
         if ok {
             if !installed.contains(where: { $0.file == m.file }) { installed.append(m) }
             saveRegistry()
